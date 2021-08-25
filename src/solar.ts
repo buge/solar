@@ -1,5 +1,5 @@
-import {Angle, asin, atan2, cos, degrees, sin, tan} from 'ts-units/angle';
-import {Length, astronomicalUnits} from 'ts-units/length';
+import {Angle, asin, atan2, cos, degrees, sin, tan} from '@buge/ts-units/angle';
+import {Length, astronomicalUnits} from '@buge/ts-units/length';
 
 const JULIAN_DAY_UNIX_EPOCH = 2440587.5;
 const MSEC_PER_DAY = 1000 * 60 * 60 * 24;

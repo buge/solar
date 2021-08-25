@@ -1,7 +1,7 @@
 import {Position} from './solar';
-import {degrees} from 'ts-units/angle';
+import {degrees} from '@buge/ts-units/angle';
 import {expect} from 'chai';
-import {kilometers} from 'ts-units/length';
+import {kilometers} from '@buge/ts-units/length';
 
 const BERN = {lat: degrees(46.94806), lon: degrees(7.45264)};
 

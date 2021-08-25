@@ -21,7 +21,7 @@
     "preshelly": "npm run build"
   },
   "dependencies": {
-    "ts-units": "github:buge/ts-units"
+    "@buge/ts-units": "^1.1.0"
   },
   "devDependencies": {
     "@types/chai": "^4.2.12",
