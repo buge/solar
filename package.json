@@ -14,12 +14,18 @@
     "fix": "prettier --config .prettierrc 'src/**/*.ts' --write && eslint --fix src/**/*.ts",
     "lint": "eslint",
     "test": "mocha -r ts-node/register 'src/**/*_test.ts'",
-    "clean": "rm -rf build",
-    "openweather": "node build/openweather/cmd.js",
-    "preopenweather": "npm run build",
-    "shelly": "node build/shelly/cmd.js",
-    "preshelly": "npm run build"
+    "prepare": "npm run build",
+    "prepack": "mv build/* .",
+    "postpack": "git clean -fd",
+    "clean": "rm -rf build"
   },
+  "files": [
+    "index.d.ts",
+    "index.js",
+    "index.js.map"
+  ],
+  "main": "index.js",
+  "typings": "index.d.ts",
   "dependencies": {
     "@buge/ts-units": "^1.1.0"
   },

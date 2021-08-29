@@ -1,4 +1,4 @@
-import {Position} from './solar';
+import {Position} from './index';
 import {degrees} from '@buge/ts-units/angle';
 import {expect} from 'chai';
 import {kilometers} from '@buge/ts-units/length';
