@@ -1,42 +1,103 @@
+/**
+ * @fileoverview Implements the Sun Position Algorithm (SPA) for Solar
+ * Radiation Applications by the National Renewable Energy Laboratory (NREL) as
+ * described in https://midcdmz.nrel.gov/spa/.
+ *
+ * This file uses the original greek letters of the paper to make it easy to
+ * cross reference the implementation with the algorithm descripton. We expect
+ * most clients to interact with the interface in `index.ts` and not with these
+ * variables directly.
+ */
+
 export interface Params {
+  /** The (Unix) date time for which to compute the solar position. */
   readonly date: Date;
 
+  /** Difference of `UT1 − UTC` in seconds in the range of `[-0.9, 0.9]`. */
   readonly ΔUT1: number;
+
+  /** Difference between Terrestial Time and Universal Time, `ΔT = TT - UT`. */
   readonly ΔT: number;
 
+  /** Geographical longitude of the observer, in degrees. */
   readonly σ: number;
+
+  /** Geographical latitude of the observer, in degrees. */
   readonly φ: number;
+
+  /** Elevation of the observers, in meters above sea level. */
   readonly E: number;
+
+  /** Atmospheric pressure at the location of the observer, in millibars. */
   readonly P: number;
+
+  /** Atmospheric temperature at the location of the observer, in ºC. */
   readonly T: number;
 }
 
 export interface Result {
   /** Julian Date. */
   JD: number;
+
+  /** Earth heliocentric longitude, in degrees. */
   L: number;
+
+  /** Earth heliocentric latitude, in degrees. */
   B: number;
+
+  /** Earth heliocentric radius, in Astronomical Units. */
   R: number;
+
+  /** Geocentric longitude, in degrees. */
   Θ: number;
+
+  /** Geocentric latitude, in degrees. */
   β: number;
+
+  /** Nutation in longitude, in degrees. */
   Δψ: number;
+
+  /** Nutation in latitude, in degrees. */
   Δε: number;
+
+  /** True obliquity of the ecliptic, in degrees. */
   ε: number;
+
+  /** Apparent sun longitude, in degrees. */
   λ: number;
+
+  /** Geocentric sun right ascension, in degrees. */
   α: number;
+
+  /** Geocentric sun declination, in degrees. */
   δ: number;
+
+  /** Observer local hour angle, in degrees. */
   H: number;
+
+  /** Topocentric sun right ascension, in degrees. */
   αʹ: number;
+
+  /** Topocentric sun declination, in degrees. */
   δʹ: number;
+
+  /** Topocentric local hour angle, in degrees. */
   Hʹ: number;
+
+  /** Topocentric zenith angle, in degrees. */
   θ: number;
+
+  /** Topocentric azimuth angle, in degrees. */
   Φ: number;
 }
 
 const {PI, asin, atan, atan2, cos, sin, tan} = Math;
 
+/** Computes the solar position from the given paramters. */
 export function calculate(params: Params): Result {
-  const {date, ΔT, σ, φ, E, P, T} = params;
+  const {date, ΔT, E, P, T} = params;
+  const φ = deg2rad(params.φ);
+  const σ = deg2rad(params.σ);
 
   // 3.1 Calculate the Julian and Julian Ephemeris Day, Century and Millenium.
   // Simply assume T is 0 for now.
@@ -48,102 +109,94 @@ export function calculate(params: Params): Result {
 
   // 3.2 Calculate the Earth heliocentric longitude, latitude and radius
   // vector (L, B and R).
-  const L = normalize(rad2deg(heliocentric(L_TERMS, JME)));
-  const B = rad2deg(heliocentric(B_TERMS, JME));
+  const L = normalize(heliocentric(L_TERMS, JME));
+  const B = heliocentric(B_TERMS, JME);
   const R = heliocentric(R_TERMS, JME);
 
   // 3.3. Calculate the geocentric longitude and latitude (Θ and β):
-  const Θ = normalize(L + 180);
+  const Θ = L + PI;
   const β = -B;
 
   // 3.4. Calculate the nutation in longitude and obliquity (Δψ and Δε):
   const {Δψ, Δε} = nutation(JCE);
 
-  // 3.5. Calculate the true obliquity of the ecliptic, ε (in degrees):
+  // 3.5. Calculate the true obliquity of the ecliptic, ε:
   const ε0 = polynomial(JME / 10, ε0_TERMS);
-  const ε = ε0 / 3600 + Δε;
+  const ε = deg2rad(ε0 / 3600) + Δε;
 
-  // 3.6. Calculate the aberration correction, Δτ (in degrees):
-  const Δτ = -20.4898 / (3600 * R);
+  // 3.6. Calculate the aberration correction, Δτ:
+  const Δτ = deg2rad(-20.4898 / (3600 * R));
 
-  // 3.7. Calculate the apparent sun longitude, λ (in degrees):
+  // 3.7. Calculate the apparent sun longitude, λ:
   const λ = Θ + Δψ + Δτ;
 
-  // 3.8. Calculate the apparent sidereal time at Greenwich at any given time, < (in degrees):
+  // 3.8. Calculate the apparent sidereal time at Greenwich at any given time, ν:
   const ν0 = normalize(
-    280.46061837 +
-      360.98564736629 * (JD - 2451545) +
-      0.000387933 * JC ** 2 -
-      JC ** 3 / 38710000
-  );
-  const ν = ν0 + Δψ * cos(deg2rad(ε));
-
-  // 3.9 Calculate the geocentric sun right ascension, α (in degrees):
-  const α = normalize(
-    rad2deg(
-      atan2(
-        sin(deg2rad(λ)) * cos(deg2rad(ε)) - tan(deg2rad(β)) * sin(deg2rad(ε)),
-        cos(deg2rad(λ))
-      )
+    deg2rad(
+      280.46061837 +
+        360.98564736629 * (JD - 2451545) +
+        0.000387933 * JC ** 2 -
+        JC ** 3 / 38710000
     )
   );
+  const ν = ν0 + Δψ * cos(ε);
 
-  // 3.10. Calculate the geocentric sun declination, δ (in degrees):
-  const δ = rad2deg(
-    asin(
-      sin(deg2rad(β)) * cos(deg2rad(ε)) +
-        cos(deg2rad(β)) * sin(deg2rad(ε)) * sin(deg2rad(λ))
-    )
-  );
+  // 3.9 Calculate the geocentric sun right ascension, α:
+  const α = normalize(atan2(sin(λ) * cos(ε) - tan(β) * sin(ε), cos(λ)));
 
-  // 3.11. Calculate the observer local hour angle, H (in degrees):
+  // 3.10. Calculate the geocentric sun declination, δ:
+  const δ = asin(sin(β) * cos(ε) + cos(β) * sin(ε) * sin(λ));
+
+  // 3.11. Calculate the observer local hour angle, H:
   const H = normalize(ν + σ - α);
 
-  // 3.12. Calculate the topocentric sun right ascension αʹ (in degrees):
+  // 3.12. Calculate the topocentric sun right ascension αʹ:
   const ξ = deg2rad(8.794 / (3600 * R));
-  const u = atan(0.99664719 * tan(deg2rad(φ)));
-  const x = cos(u) + (E / 6378140) * cos(deg2rad(φ));
-  const y = 0.99664719 * sin(u) + (E / 6378140) * sin(deg2rad(φ));
-  const Δα = rad2deg(
-    atan2(
-      -x * sin(ξ) * sin(deg2rad(H)),
-      cos(deg2rad(δ)) - x * sin(ξ) * cos(deg2rad(H))
-    )
-  );
+  const u = atan(0.99664719 * tan(φ));
+  const x = cos(u) + (E / 6378140) * cos(φ);
+  const y = 0.99664719 * sin(u) + (E / 6378140) * sin(φ);
+  const Δα = atan2(-x * sin(ξ) * sin(H), cos(δ) - x * sin(ξ) * cos(H));
   const αʹ = α + Δα;
-  const δʹ = rad2deg(
-    atan2(
-      (sin(deg2rad(δ)) - y * sin(ξ)) * cos(deg2rad(Δα)),
-      cos(deg2rad(δ)) - x * sin(ξ) * cos(deg2rad(H))
-    )
+  const δʹ = atan2(
+    (sin(δ) - y * sin(ξ)) * cos(Δα),
+    cos(δ) - x * sin(ξ) * cos(H)
   );
-
   // 3.13. Calculate the topocentric local hour angle, Hʹ
   const Hʹ = H - Δα;
 
-  // 3.14. Calculate the topocentric zenith angle, Θ (in degrees):
-  const e0 = rad2deg(
-    asin(
-      sin(deg2rad(φ)) * sin(deg2rad(δʹ)) +
-        cos(deg2rad(φ)) * cos(deg2rad(δʹ)) * cos(deg2rad(Hʹ))
-    )
-  );
-  const Δe =
+  // 3.14. Calculate the topocentric zenith angle, θ:
+  const e0 = asin(sin(φ) * sin(δʹ) + cos(φ) * cos(δʹ) * cos(Hʹ));
+  const Δe = deg2rad(
     ((P / 1010) * (283 / (273 + T)) * 1.02) /
-    (60 * tan(deg2rad(e0 + 10.3 / (e0 + 5.11))));
-  const e = e0 + Δe;
-  const θ = 90 - e;
-
-  // 3.15. Calculate the topocentric azimuth angle, Φ (in degrees):
-  const Γ = rad2deg(
-    atan2(
-      sin(deg2rad(Hʹ)),
-      cos(deg2rad(Hʹ)) * sin(deg2rad(φ)) - tan(deg2rad(δʹ)) * cos(deg2rad(φ))
-    )
+      (60 * tan(e0 + deg2rad(deg2rad(10.3)) / (e0 + deg2rad(5.11))))
   );
-  const Φ = normalize(Γ + 180);
+  const e = e0 + Δe;
+  const θ = PI / 2 - e;
 
-  return {JD, L, B, R, Θ, β, Δψ, Δε, ε, λ, α, δ, H, αʹ, δʹ, Hʹ, θ, Φ};
+  // 3.15. Calculate the topocentric azimuth angle, Φ:
+  const Γ = atan2(sin(Hʹ), cos(Hʹ) * sin(φ) - tan(δʹ) * cos(φ));
+  const Φ = normalize(Γ + PI);
+
+  return {
+    JD,
+    L: rad2deg(L),
+    B: rad2deg(B),
+    R,
+    Θ: rad2deg(Θ),
+    β: rad2deg(β),
+    Δψ: rad2deg(Δψ),
+    Δε: rad2deg(Δε),
+    ε: rad2deg(ε),
+    λ: rad2deg(λ),
+    α: rad2deg(α),
+    δ: rad2deg(δ),
+    H: rad2deg(H),
+    αʹ: rad2deg(αʹ),
+    δʹ: rad2deg(δʹ),
+    Hʹ: rad2deg(Hʹ),
+    θ: rad2deg(θ),
+    Φ: rad2deg(Φ),
+  };
 }
 
 /** The Julian Date of the Unix epoch. */
@@ -188,14 +241,16 @@ function nutation(JCE: number) {
   const xy = xyTerms(JCE);
 
   return {
-    Δψ:
+    Δψ: deg2rad(
       Δψ_TERMS
         .map((r, i) => (r[0] + r[1] * JCE) * sin(xy[i]))
-        .reduce((a, b) => a + b) / 36000000,
-    Δε:
+        .reduce((a, b) => a + b) / 36000000
+    ),
+    Δε: deg2rad(
       Δε_TERMS
         .map((r, i) => (r[0] + r[1] * JCE) * cos(xy[i]))
-        .reduce((a, b) => a + b) / 36000000,
+        .reduce((a, b) => a + b) / 36000000
+    ),
   };
 }
 
@@ -211,8 +266,9 @@ function deg2rad(degrees: number) {
   return (PI / 180) * degrees;
 }
 
-function normalize(degrees: number) {
-  return ((degrees % 360) + 360) % 360;
+function normalize(radians: number) {
+  const TwoPI = 2 * PI;
+  return ((radians % TwoPI) + TwoPI) % TwoPI;
 }
 
 const L_TERMS = [
