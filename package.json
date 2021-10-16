@@ -32,7 +32,7 @@
   "main": "index.js",
   "typings": "index.d.ts",
   "dependencies": {
-    "@buge/ts-units": "^1.1.0"
+    "@buge/ts-units": "^1.2.0"
   },
   "devDependencies": {
     "@types/chai": "^4.2.12",
