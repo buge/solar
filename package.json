@@ -25,9 +25,10 @@
     "release": "release-it"
   },
   "files": [
-    "index.d.ts",
-    "index.js",
-    "index.js.map"
+    "deltatpoly.*",
+    "index.*",
+    "pressure.*",
+    "spa.*"
   ],
   "main": "index.js",
   "typings": "index.d.ts",
