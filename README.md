@@ -1,5 +1,8 @@
 # Solar Positioning
 
+[![CI Build](https://github.com/buge/solar/actions/workflows/node.js.yml/badge.svg)](https://github.com/buge/solar/actions/workflows/node.js.yml)
+[![npm version](https://badge.fury.io/js/@buge%2Fsolar.svg)](https://badge.fury.io/js/@buge%2Fsolar)
+
 TypeScript library that computes the position of the sun as seen by a local
 observer on earth.
 
