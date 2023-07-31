@@ -17,7 +17,7 @@ describe('spa', () => {
     ];
 
     for (const test of tests) {
-      it(test.date.toISO(), () => {
+      it(test.date.toISO()!, () => {
         expect(julianDate(test.date.toJSDate())).to.be.closeTo(test.JD, 1e-6);
       });
     }
